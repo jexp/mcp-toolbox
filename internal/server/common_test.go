@@ -21,8 +21,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/googleapis/genai-toolbox/internal/log"
 	"github.com/googleapis/genai-toolbox/internal/telemetry"
 	"github.com/googleapis/genai-toolbox/internal/tools"
@@ -38,6 +40,7 @@ type MockTool struct {
 	Name        string
 	Description string
 	Params      []tools.Parameter
+	manifest    tools.Manifest
 }
 
 func (t MockTool) Invoke(tools.ParamValues) ([]any, error) {
@@ -61,6 +64,29 @@ func (t MockTool) Authorized(verifiedAuthServices []string) bool {
 	return true
 }
 
+func (t MockTool) McpManifest() tools.McpManifest {
+	properties := make(map[string]tools.ParameterMcpManifest)
+	required := make([]string, 0)
+
+	for _, p := range t.Params {
+		name := p.GetName()
+		properties[name] = p.McpManifest()
+		required = append(required, name)
+	}
+
+	toolsSchema := tools.McpToolsSchema{
+		Type:       "object",
+		Properties: properties,
+		Required:   required,
+	}
+
+	return tools.McpManifest{
+		Name:        t.Name,
+		Description: t.Description,
+		InputSchema: toolsSchema,
+	}
+}
+
 var tool1 = MockTool{
 	Name:   "no_params",
 	Params: []tools.Parameter{},
@@ -74,15 +100,29 @@ var tool2 = MockTool{
 	},
 }
 
+var tool3 = MockTool{
+	Name:        "array_param",
+	Description: "some description",
+	Params: tools.Parameters{
+		tools.NewArrayParameter("my_array", "this param is an array of strings", tools.NewStringParameter("my_string", "string item")),
+	},
+}
+
 // setUpResources setups resources to test against
-func setUpResources(t *testing.T) (map[string]tools.Tool, map[string]tools.Toolset) {
-	toolsMap := map[string]tools.Tool{tool1.Name: tool1, tool2.Name: tool2}
+func setUpResources(t *testing.T, mockTools []MockTool) (map[string]tools.Tool, map[string]tools.Toolset) {
+	toolsMap := make(map[string]tools.Tool)
+	var allTools []string
+	for _, tool := range mockTools {
+		tool.manifest = tool.Manifest()
+		toolsMap[tool.Name] = tool
+		allTools = append(allTools, tool.Name)
+	}
 
 	toolsets := make(map[string]tools.Toolset)
 	for name, l := range map[string][]string{
-		"":           {tool1.Name, tool2.Name},
-		"tool1_only": {tool1.Name},
-		"tool2_only": {tool2.Name},
+		"":           allTools,
+		"tool1_only": {allTools[0]},
+		"tool2_only": {allTools[1]},
 	} {
 		tc := tools.ToolsetConfig{Name: name, ToolNames: l}
 		m, err := tc.Initialize(fakeVersionString, toolsMap)
@@ -95,7 +135,7 @@ func setUpResources(t *testing.T) (map[string]tools.Tool, map[string]tools.Tools
 }
 
 // setUpServer create a new server with tools and toolsets that are given
-func setUpServer(t *testing.T, tools map[string]tools.Tool, toolsets map[string]tools.Toolset) (*httptest.Server, func()) {
+func setUpServer(t *testing.T, router string, tools map[string]tools.Tool, toolsets map[string]tools.Toolset) (*httptest.Server, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	testLogger, err := log.NewStdLogger(os.Stdout, os.Stderr, "info")
@@ -113,10 +153,26 @@ func setUpServer(t *testing.T, tools map[string]tools.Tool, toolsets map[string]
 		t.Fatalf("unable to create custom metrics: %s", err)
 	}
 
-	server := Server{version: fakeVersionString, logger: testLogger, instrumentation: instrumentation, tools: tools, toolsets: toolsets}
-	r, err := apiRouter(&server)
-	if err != nil {
-		t.Fatalf("unable to initialize router: %s", err)
+	sseManager := &sseManager{
+		mu:          sync.RWMutex{},
+		sseSessions: make(map[string]*sseSession),
+	}
+
+	server := Server{version: fakeVersionString, logger: testLogger, instrumentation: instrumentation, sseManager: sseManager, tools: tools, toolsets: toolsets}
+	var r chi.Router
+	switch router {
+	case "api":
+		r, err = apiRouter(&server)
+		if err != nil {
+			t.Fatalf("unable to initialize api router: %s", err)
+		}
+	case "mcp":
+		r, err = mcpRouter(&server)
+		if err != nil {
+			t.Fatalf("unable to initialize mcp router: %s", err)
+		}
+	default:
+		t.Fatalf("unknown router")
 	}
 	ts := httptest.NewServer(r)
 	shutdown := func() {
