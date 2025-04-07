@@ -27,17 +27,20 @@ import (
 	cloudsqlmysqlsrc "github.com/googleapis/genai-toolbox/internal/sources/cloudsqlmysql"
 	cloudsqlpgsrc "github.com/googleapis/genai-toolbox/internal/sources/cloudsqlpg"
 	dgraphsrc "github.com/googleapis/genai-toolbox/internal/sources/dgraph"
+	httpsrc "github.com/googleapis/genai-toolbox/internal/sources/http"
 	mssqlsrc "github.com/googleapis/genai-toolbox/internal/sources/mssql"
 	mysqlsrc "github.com/googleapis/genai-toolbox/internal/sources/mysql"
-	neo4jrc "github.com/googleapis/genai-toolbox/internal/sources/neo4j"
+	neo4jsrc "github.com/googleapis/genai-toolbox/internal/sources/neo4j"
 	postgressrc "github.com/googleapis/genai-toolbox/internal/sources/postgres"
 	spannersrc "github.com/googleapis/genai-toolbox/internal/sources/spanner"
 	"github.com/googleapis/genai-toolbox/internal/tools"
 	"github.com/googleapis/genai-toolbox/internal/tools/dgraph"
+	httptool "github.com/googleapis/genai-toolbox/internal/tools/http"
 	"github.com/googleapis/genai-toolbox/internal/tools/mssqlsql"
 	"github.com/googleapis/genai-toolbox/internal/tools/mysqlsql"
 	neo4jtool "github.com/googleapis/genai-toolbox/internal/tools/neo4j"
 	"github.com/googleapis/genai-toolbox/internal/tools/postgressql"
+	"github.com/googleapis/genai-toolbox/internal/tools/alloydbainl"
 	"github.com/googleapis/genai-toolbox/internal/tools/spanner"
 	"github.com/googleapis/genai-toolbox/internal/util"
 )
@@ -188,8 +191,8 @@ func (c *SourceConfigs) UnmarshalYAML(ctx context.Context, unmarshal func(interf
 				return fmt.Errorf("unable to parse as %q: %w", kind, err)
 			}
 			(*c)[name] = actual
-		case neo4jrc.SourceKind:
-			actual := neo4jrc.Config{Name: name}
+		case neo4jsrc.SourceKind:
+			actual := neo4jsrc.Config{Name: name}
 			if err := dec.DecodeContext(ctx, &actual); err != nil {
 				return fmt.Errorf("unable to parse as %q: %w", kind, err)
 			}
@@ -208,6 +211,12 @@ func (c *SourceConfigs) UnmarshalYAML(ctx context.Context, unmarshal func(interf
 			(*c)[name] = actual
 		case dgraphsrc.SourceKind:
 			actual := dgraphsrc.Config{Name: name}
+			if err := dec.DecodeContext(ctx, &actual); err != nil {
+				return fmt.Errorf("unable to parse as %q: %w", kind, err)
+			}
+			(*c)[name] = actual
+		case httpsrc.SourceKind:
+			actual := httpsrc.DefaultConfig(name)
 			if err := dec.DecodeContext(ctx, &actual); err != nil {
 				return fmt.Errorf("unable to parse as %q: %w", kind, err)
 			}
@@ -299,6 +308,12 @@ func (c *ToolConfigs) UnmarshalYAML(ctx context.Context, unmarshal func(interfac
 				return fmt.Errorf("unable to parse as %q: %w", kind, err)
 			}
 			(*c)[name] = actual
+		case alloydbainl.ToolKind:
+			actual := alloydbainl.Config{Name: name}
+			if err := dec.DecodeContext(ctx, &actual); err != nil {
+				return fmt.Errorf("unable to parse as %q: %w", kind, err)
+			}
+			(*c)[name] = actual
 		case mysqlsql.ToolKind:
 			actual := mysqlsql.Config{Name: name}
 			if err := dec.DecodeContext(ctx, &actual); err != nil {
@@ -325,6 +340,12 @@ func (c *ToolConfigs) UnmarshalYAML(ctx context.Context, unmarshal func(interfac
 			(*c)[name] = actual
 		case dgraph.ToolKind:
 			actual := dgraph.Config{Name: name}
+			if err := dec.DecodeContext(ctx, &actual); err != nil {
+				return fmt.Errorf("unable to parse as %q: %w", kind, err)
+			}
+			(*c)[name] = actual
+		case httptool.ToolKind:
+			actual := httptool.Config{Name: name}
 			if err := dec.DecodeContext(ctx, &actual); err != nil {
 				return fmt.Errorf("unable to parse as %q: %w", kind, err)
 			}
