@@ -18,6 +18,13 @@ This guide assumes you have already done the following:
 1. Installed [PostgreSQL 16+ and the `psql` client][install-postgres]
 1. Completed setup for usage with an LLM model such as
 {{< tabpane text=true persist=header >}}
+{{% tab header="Core" lang="en" %}}
+- [langchain-vertexai](https://python.langchain.com/docs/integrations/llms/google_vertex_ai_palm/#setup) package.
+
+- [langchain-google-genai](https://python.langchain.com/docs/integrations/chat/google_generative_ai/#setup) package.
+
+- [langchain-anthropic](https://python.langchain.com/docs/integrations/chat/anthropic/#setup) package.
+{{% /tab %}}
 {{% tab header="LangChain" lang="en" %}}
 - [langchain-vertexai](https://python.langchain.com/docs/integrations/llms/google_vertex_ai_palm/#setup) package.
 
@@ -213,6 +220,13 @@ In this section, we will download Toolbox, configure our tools in a
             type: string
             description: The ID of the hotel to cancel.
         statement: UPDATE hotels SET booked = B'0' WHERE id = $1;
+   toolsets:
+      my-toolset:
+        - search-hotels-by-name
+        - search-hotels-by-location
+        - book-hotel
+        - update-hotel
+        - cancel-hotel
     ```
     For more info on tools, check out the `Resources` section of the docs.
 
@@ -236,6 +250,10 @@ you can connect to a
 1. In a new terminal, install the SDK package.
     
     {{< tabpane persist=header >}}
+{{< tab header="Core" lang="bash" >}}
+
+pip install toolbox-core
+{{< /tab >}}
 {{< tab header="Langchain" lang="bash" >}}
 
 pip install toolbox-langchain
@@ -249,6 +267,14 @@ pip install toolbox-llamaindex
 1. Install other required dependencies:
     
     {{< tabpane persist=header >}}
+{{< tab header="Core" lang="bash" >}}
+
+# TODO(developer): replace with correct package if needed
+pip install langgraph langchain-google-vertexai
+pip install langchain
+# pip install langchain-google-genai
+# pip install langchain-anthropic
+{{< /tab >}}
 {{< tab header="Langchain" lang="bash" >}}
 
 # TODO(developer): replace with correct package if needed
@@ -267,6 +293,62 @@ pip install llama-index-llms-google-genai
 1. Create a new file named `hotel_agent.py` and copy the following
    code to create an agent:
     {{< tabpane persist=header >}}
+{{< tab header="Core" lang="python" >}}
+from langgraph.prebuilt import create_react_agent
+from langchain_google_vertexai import ChatVertexAI
+from langgraph.checkpoint.memory import MemorySaver
+from toolbox_core import ToolboxClient
+from langchain.tools import StructuredTool
+
+import asyncio
+
+
+prompt = """
+  You're a helpful hotel assistant. You handle hotel searching, booking and
+  cancellations. When the user searches for a hotel, mention it's name, id,
+  location and price tier. Always mention hotel id while performing any
+  searches. This is very important for any operations. For any bookings or
+  cancellations, please provide the appropriate confirmation. Be sure to
+  update checkin or checkout dates if mentioned by the user.
+  Don't ask for confirmations from the user.
+"""
+
+queries = [
+    "Find hotels in Basel with Basel in it's name.",
+    "Can you book the Hilton Basel for me?",
+    "Oh wait, this is too expensive. Please cancel it and book the Hyatt Regency instead.",
+    "My check in dates would be from April 10, 2024 to April 19, 2024.",
+]
+
+model = ChatVertexAI(model_name="gemini-1.5-pro-002", project="project-id")
+
+
+async def run_application():
+    client = ToolboxClient("http://127.0.0.1:5000")
+    tools = await client.load_toolset("my-toolset")
+    
+    # client.load_toolset returns python function for tools which can be plugged into any 
+    # orchestration frameworks for tool creation. Here, he are using Langchain tools.
+    wrapped_tools = [
+        StructuredTool.from_function(
+            coroutine=tool, parse_docstring=True, error_on_invalid_docstring=True
+        )
+        for tool in tools
+    ]
+
+    agent = create_react_agent(
+        model, wrapped_tools, checkpointer=MemorySaver(), prompt=prompt
+    )
+    config = {"configurable": {"thread_id": "thread-1"}}
+    for query in queries:
+        inputs = {"messages": [("user", query)]}
+        response = await agent.ainvoke(inputs, stream_mode="values", config=config)
+        print(response["messages"][-1].content)
+    await client.close()
+
+asyncio.run(run_application())
+
+{{< /tab >}}
 {{< tab header="LangChain" lang="python" >}}
 
 from langgraph.prebuilt import create_react_agent
@@ -381,6 +463,9 @@ asyncio.run(main())
 {{< /tabpane >}}
     
     {{< tabpane text=true persist=header >}}
+{{% tab header="Core" lang="en" %}}
+To learn more about AI Agents, check out the [Google Cloud Documentation.](https://cloud.google.com/discover/what-are-ai-agents?e=48754805&hl=en)
+{{% /tab %}}
 {{% tab header="Langchain" lang="en" %}}
 To learn more about Agents in LangChain, check out the [LangGraph Agent documentation.](https://langchain-ai.github.io/langgraph/reference/prebuilt/#langgraph.prebuilt.chat_agent_executor.create_react_agent)
 {{% /tab %}}
