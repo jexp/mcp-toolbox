@@ -327,8 +327,8 @@ async def run_application():
     client = ToolboxClient("http://127.0.0.1:5000")
     tools = await client.load_toolset("my-toolset")
     
-    # client.load_toolset returns python function for tools which can be plugged into any 
-    # orchestration frameworks for tool creation. Here, he are using Langchain tools.
+    # client.load_toolset provides Python functions that act as tools, ready for integration 
+    # into any orchestration framework. We are specifically using them here as Langchain tools.
     wrapped_tools = [
         StructuredTool.from_function(
             coroutine=tool, parse_docstring=True, error_on_invalid_docstring=True
