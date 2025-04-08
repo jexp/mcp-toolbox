@@ -348,7 +348,6 @@ async def run_application():
             ),
         )
         history.append(response.candidates[0].content)
-        print("All function calls", response.function_calls)
         function_response_parts = []
         for function_call in response.function_calls:
             fn_name = function_call.name
