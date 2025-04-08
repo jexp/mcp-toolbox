@@ -320,7 +320,9 @@ async def run_application():
     # (https://github.com/googleapis/genai-toolbox-langchain-python/tree/main/packages), use the 
     # provided wrapper packages, which handle framework-specific boilerplate.
     toolbox_tools = await toolbox_client.load_toolset("my-toolset")
-    genai_client = genai.Client(api_key=<GEMINI_API_KEY>)
+    genai_client = genai.Client(
+        vertexai=True, project='project-id', location='us-central1'
+    )
 
     genai_tools = [
         types.Tool(
