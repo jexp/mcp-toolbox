@@ -75,7 +75,7 @@ Use MCP [Inspector](https://github.com/modelcontextprotocol/inspector) for testi
 1. Click the `Connect` button. Voila! You should be able to inspect your toolbox
    tools!
 
-### Supported Clients
+### Tested Clients
 
 | Client | SSE Works | MCP Config Docs |
 |--------|--------|--------|
