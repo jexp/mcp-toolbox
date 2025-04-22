@@ -83,7 +83,7 @@ Use MCP [Inspector](https://github.com/modelcontextprotocol/inspector) for testi
 
 | Client | SSE Works | MCP Config Docs |
 |--------|--------|--------|
-| Claude Desktop | ❗ | Claude Desktop only supports STDIO servers. Please connect via local proxy (e.g. Cloudflare). | 
+| Claude Desktop | ❗ | Claude Desktop only supports STDIO -- use [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) to proxy. | 
 | MCP Inspector | ✅ | https://github.com/modelcontextprotocol/inspector |
 | Cursor | ✅ | https://docs.cursor.com/context/model-context-protocol |
 | Windsurf | ✅ | https://docs.windsurf.com/windsurf/mcp | 
