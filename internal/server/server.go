@@ -78,7 +78,7 @@ func NewServer(ctx context.Context, cfg ServerConfig, l log.Logger) (*Server, er
 			JSON:             true,
 			LogLevel:         logLevel,
 			Concise:          true,
-			RequestHeaders:   true,
+			RequestHeaders:   false,
 			MessageFieldName: "message",
 			SourceFieldName:  "logging.googleapis.com/sourceLocation",
 			TimeFieldName:    "timestamp",
@@ -88,7 +88,7 @@ func NewServer(ctx context.Context, cfg ServerConfig, l log.Logger) (*Server, er
 		httpOpts = httplog.Options{
 			LogLevel:         logLevel,
 			Concise:          true,
-			RequestHeaders:   true,
+			RequestHeaders:   false,
 			MessageFieldName: "message",
 		}
 	default:
@@ -260,14 +260,14 @@ func (s *Server) Listen(ctx context.Context) error {
 }
 
 // Serve starts an HTTP server for the given Server instance.
-func (s *Server) Serve() error {
-	s.logger.DebugContext(context.Background(), "Starting a HTTP server.")
+func (s *Server) Serve(ctx context.Context) error {
+	s.logger.DebugContext(ctx, "Starting a HTTP server.")
 	return s.srv.Serve(s.listener)
 }
 
 // Shutdown gracefully shuts down the server without interrupting any active
 // connections. It uses http.Server.Shutdown() and has the same functionality.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.logger.DebugContext(context.Background(), "shutting down the server.")
+	s.logger.DebugContext(ctx, "shutting down the server.")
 	return s.srv.Shutdown(ctx)
 }
